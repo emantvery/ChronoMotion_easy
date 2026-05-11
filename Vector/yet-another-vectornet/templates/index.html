@@ -1,0 +1,659 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Multi-Modal Trajectory Prediction System</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        #canvas { border: 2px solid #333; background: white; border-radius: 8px; }
+        .controls { margin: 20px 0; }
+        button { 
+            padding: 12px 24px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            margin-right: 10px;
+            border: none;
+            border-radius: 5px;
+            background: #3498db;
+            color: white;
+            transition: background 0.3s;
+        }
+        button:hover { background: #2980b9; }
+        button.lang-btn {
+            padding: 6px 12px;
+            font-size: 14px;
+            background: #6c757d;
+            width: 85px;
+            min-width: 85px;
+            max-width: 85px;
+            text-align: center;
+            box-sizing: border-box;
+            height: 32px;
+            line-height: 16px;
+        }
+        button.lang-btn:hover, button.lang-btn.active {
+            background: #495057;
+        }
+        .prob-display { margin: 15px 0; padding: 15px; background: #fff; border-radius: 8px; }
+        .mode-item { 
+            display: inline-block; 
+            margin-right: 15px; 
+            padding: 8px 20px; 
+            border-radius: 20px; 
+            font-weight: bold;
+        }
+        .mode-0 { background: #FF6B6B; color: white; }
+        .mode-1 { background: #4ECDC4; color: white; }
+        .mode-2 { background: #9B59B6; color: white; }
+        .api-demo { background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        pre { background: #f8f8f8; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #2c3e50; }
+        .header p { color: #7f8c8d; }
+        
+        .lang-selector {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        
+        .report-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .report-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .report-card h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .stat-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .confidence-bar {
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+        
+        .trajectory-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .trajectory-table th, .trajectory-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .trajectory-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .badge-high { background: #d4edda; color: #155724; }
+        .badge-medium { background: #fff3cd; color: #856404; }
+        .badge-low { background: #f8d7da; color: #721c24; }
+        
+        .summary-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-box h3 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="lang-selector">
+        <button id="lang-zh" class="lang-btn active" onclick="switchLang('zh')">中文</button>
+        <button id="lang-en" class="lang-btn" onclick="switchLang('en')">English</button>
+    </div>
+    
+    <div class="header">
+        <h1 id="title">🚗 Multi-Modal Trajectory Prediction System</h1>
+        <p id="subtitle">Graph Neural Network based Lightweight Autonomous Driving Trajectory Prediction</p>
+    </div>
+    
+    <div class="api-demo">
+        <h3 id="api-title">🔌 RESTful API</h3>
+        <p id="api-endpoint"><strong id="label-endpoint">Endpoint:</strong> POST /api/v1/predict</p>
+        <p id="api-example"><strong id="label-example">Example:</strong></p>
+        <pre>{
+  "trajectory": [[0,0], [1,0.5], ...],  // 至少20个点
+  "return_uncertainty": true,
+  "top_k": 3
+}</pre>
+        <p id="api-links">Try it: <a href="/api/v1/examples" id="link-examples">View Examples</a> | <a href="/api/v1/model_info" id="link-model-info">Model Info</a></p>
+    </div>
+    
+    <div class="controls">
+        <button onclick="loadDemo()" id="btn-load">📊 Load Demo</button>
+        <button onclick="runPrediction()" id="btn-predict">🔮 Predict</button>
+        <button onclick="clearCanvas()" id="btn-clear">🗑️ Clear</button>
+    </div>
+    
+    <canvas id="canvas" width="800" height="600"></canvas>
+    
+    <div class="prob-display" id="probDisplay"></div>
+    
+    <div id="predictionReport" style="display: none;">
+        <div class="summary-box">
+            <h3 id="report-summary-title">📋 Prediction Summary</h3>
+            <div style="display: flex; gap: 30px;">
+                <div>
+                    <span id="label-best-mode" style="font-size: 24px; font-weight: bold;">Best Mode: </span>
+                    <span id="bestMode" style="font-size: 28px; color: #ffd700;">Mode 1</span>
+                </div>
+                <div>
+                    <span id="label-confidence" style="font-size: 20px;">Confidence: </span>
+                    <span id="confidence" style="font-size: 24px; font-weight: bold;">0%</span>
+                </div>
+            </div>
+            <div class="confidence-bar">
+                <div id="confidenceBar" class="confidence-fill" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div class="report-container">
+            <div class="report-card">
+                <h3 id="report-stats-title">📊 Prediction Statistics</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label" id="label-obs-points">Observation Points</div>
+                        <div class="stat-value" id="obsPoints">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label" id="label-pred-horizon">Prediction Horizon</div>
+                        <div class="stat-value" id="predHorizon">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label" id="label-avg-uncertainty">Avg Uncertainty</div>
+                        <div class="stat-value" id="avgUncertainty">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label" id="label-confidence-level">Confidence Level</div>
+                        <div class="stat-value">
+                            <span id="confidenceLevel" class="badge">Low</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="report-card">
+                <h3 id="report-details-title">📈 Trajectory Details</h3>
+                <table class="trajectory-table">
+                    <thead>
+                        <tr>
+                            <th id="th-mode">Mode</th>
+                            <th id="th-probability">Probability</th>
+                            <th id="th-position">Final Position</th>
+                            <th id="th-distance">Distance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trajectoryDetails"></tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="report-card full-width">
+            <h3 id="report-analysis-title">🔍 Analysis Report</h3>
+            <div id="analysisReport">
+                <p id="analysis-placeholder">Prediction analysis will appear here...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const translations = {
+            zh: {
+                title: '🚗 多模态轨迹预测系统',
+                subtitle: '基于图神经网络的轻量化自动驾驶轨迹预测',
+                'api-title': '🔌 RESTful API',
+                'label-endpoint': '接口地址:',
+                'label-example': '示例:',
+                'api-links': '尝试: <a href="/api/v1/examples">查看示例</a> | <a href="/api/v1/model_info">模型信息</a>',
+                'btn-load': '📊 加载演示',
+                'btn-predict': '🔮 预测',
+                'btn-clear': '🗑️ 清除',
+                'report-summary-title': '📋 预测摘要',
+                'label-best-mode': '最佳模式: ',
+                'label-confidence': '置信度: ',
+                'report-stats-title': '📊 预测统计',
+                'label-obs-points': '观测点数',
+                'label-pred-horizon': '预测时长',
+                'label-avg-uncertainty': '平均不确定性',
+                'label-confidence-level': '置信度等级',
+                'report-details-title': '📈 轨迹详情',
+                'th-mode': '模式',
+                'th-probability': '概率',
+                'th-position': '终点位置',
+                'th-distance': '距离',
+                'report-analysis-title': '🔍 分析报告',
+                'analysis-placeholder': '预测分析将在此显示...',
+                'load-demo-error': '请至少添加20个点，或点击加载演示',
+                'prediction-failed': '预测失败: ',
+                'error': '错误: ',
+                'prob-title': '📊 预测概率:',
+                'analysis-prefix': '<p><strong>🔍 预测分析:</strong></p>',
+                'analysis-intro': '<p>根据观测轨迹，模型预测了 <strong>{count}</strong> 条可能的未来路径。</p>',
+                'analysis-best': '<p><strong>最佳预测 (模式 {mode}):</strong> 最可能的轨迹终点位于 ({x}, {y})，总距离为 {dist} 米。</p>',
+                'analysis-high': '<p><span style="color: #28a745; font-weight: bold;">✅ 高置信度</span>: 模型对此次预测非常有信心。车辆可能正在遵循一条清晰、可预测的路径。</p>',
+                'analysis-medium': '<p><span style="color: #ffc107; font-weight: bold;">⚠️ 中等置信度</span>: 预测存在不确定性。建议密切监测车辆的实际轨迹。</p>',
+                'analysis-low': '<p><span style="color: #dc3545; font-weight: bold;">🔴 低置信度</span>: 检测到高度不确定性。车辆未来路径高度不可预测。请谨慎操作。</p>',
+                'analysis-comparison': '<p><strong>📊 模式对比:</strong></p>',
+                'analysis-recommendation': '<p><strong>💡 建议:</strong> 根据预测，车辆预计将继续沿当前方向行驶。如果这是自动驾驶场景，请保持安全距离并监测预测路径的任何偏差。</p>',
+                'mode-label': '模式 {mode}',
+                'best-tag': '(最佳)',
+                'end-point-label': '终点: ({x}, {y})'
+            },
+            en: {
+                title: '🚗 Multi-Modal Trajectory Prediction System',
+                subtitle: 'Graph Neural Network based Lightweight Autonomous Driving Trajectory Prediction',
+                'api-title': '🔌 RESTful API',
+                'label-endpoint': 'Endpoint:',
+                'label-example': 'Example:',
+                'api-links': 'Try it: <a href="/api/v1/examples">View Examples</a> | <a href="/api/v1/model_info">Model Info</a>',
+                'btn-load': '📊 Load Demo',
+                'btn-predict': '🔮 Predict',
+                'btn-clear': '🗑️ Clear',
+                'report-summary-title': '📋 Prediction Summary',
+                'label-best-mode': 'Best Mode: ',
+                'label-confidence': 'Confidence: ',
+                'report-stats-title': '📊 Prediction Statistics',
+                'label-obs-points': 'Observation Points',
+                'label-pred-horizon': 'Prediction Horizon',
+                'label-avg-uncertainty': 'Avg Uncertainty',
+                'label-confidence-level': 'Confidence Level',
+                'report-details-title': '📈 Trajectory Details',
+                'th-mode': 'Mode',
+                'th-probability': 'Probability',
+                'th-position': 'Final Position',
+                'th-distance': 'Distance',
+                'report-analysis-title': '🔍 Analysis Report',
+                'analysis-placeholder': 'Prediction analysis will appear here...',
+                'load-demo-error': 'Please add at least 20 points, or click Load Demo',
+                'prediction-failed': 'Prediction failed: ',
+                'error': 'Error: ',
+                'prob-title': '📊 Prediction Probabilities:',
+                'analysis-prefix': '<p><strong>🔍 Prediction Analysis:</strong></p>',
+                'analysis-intro': '<p>Based on the observed trajectory, the model predicts <strong>{count}</strong> possible future paths.</p>',
+                'analysis-best': '<p><strong>Best Prediction (Mode {mode}):</strong> The most likely trajectory ends at position ({x}, {y}) with a total distance of {dist} meters.</p>',
+                'analysis-high': '<p><span style="color: #28a745; font-weight: bold;">✅ High Confidence</span>: The model is very confident about this prediction. The vehicle is likely following a clear, predictable path.</p>',
+                'analysis-medium': '<p><span style="color: #ffc107; font-weight: bold;">⚠️ Medium Confidence</span>: There is uncertainty in the prediction. Consider monitoring the vehicle actual trajectory closely.</p>',
+                'analysis-low': '<p><span style="color: #dc3545; font-weight: bold;">🔴 Low Confidence</span>: High uncertainty detected. The vehicle future path is highly unpredictable. Exercise caution.</p>',
+                'analysis-comparison': '<p><strong>📊 Mode Comparison:</strong></p>',
+                'analysis-recommendation': '<p><strong>💡 Recommendation:</strong> Based on the prediction, the vehicle is expected to continue moving in the current direction. If this is an autonomous vehicle scenario, maintain a safe distance and monitor for any deviation from the predicted path.</p>',
+                'mode-label': 'Mode {mode}',
+                'best-tag': '(Best)',
+                'end-point-label': 'End Point: ({x}, {y})'
+            }
+        };
+        
+        let currentLang = 'zh';
+        let lastPredictionData = null;
+        
+        function switchLang(lang) {
+            currentLang = lang;
+            document.getElementById('lang-zh').className = lang === 'zh' ? 'lang-btn active' : 'lang-btn';
+            document.getElementById('lang-en').className = lang === 'en' ? 'lang-btn active' : 'lang-btn';
+            document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+            translatePage();
+            
+            if (lastPredictionData) {
+                updateProbDisplay(lastPredictionData);
+                updateReport(lastPredictionData);
+            }
+        }
+        
+        function updateProbDisplay(data) {
+            const probDisplay = document.getElementById('probDisplay');
+            const trans = translations[currentLang];
+            let html = `<h3>${trans['prob-title']}</h3>`;
+            data.probabilities.forEach((prob, idx) => {
+                html += `<div class="mode-item mode-${idx}">${trans['mode-label'].replace('{mode}', idx+1)}: ${(prob*100).toFixed(1)}%</div>`;
+            });
+            probDisplay.innerHTML = html;
+        }
+        
+        function translatePage() {
+            const trans = translations[currentLang];
+            document.getElementById('title').textContent = trans.title;
+            document.getElementById('subtitle').textContent = trans.subtitle;
+            document.getElementById('api-title').textContent = trans['api-title'];
+            document.getElementById('label-endpoint').textContent = trans['label-endpoint'];
+            document.getElementById('label-example').textContent = trans['label-example'];
+            document.getElementById('api-links').innerHTML = trans['api-links'];
+            document.getElementById('btn-load').textContent = trans['btn-load'];
+            document.getElementById('btn-predict').textContent = trans['btn-predict'];
+            document.getElementById('btn-clear').textContent = trans['btn-clear'];
+            
+            document.getElementById('report-summary-title').textContent = trans['report-summary-title'];
+            document.getElementById('label-best-mode').textContent = trans['label-best-mode'];
+            document.getElementById('label-confidence').textContent = trans['label-confidence'];
+            document.getElementById('report-stats-title').textContent = trans['report-stats-title'];
+            document.getElementById('label-obs-points').textContent = trans['label-obs-points'];
+            document.getElementById('label-pred-horizon').textContent = trans['label-pred-horizon'];
+            document.getElementById('label-avg-uncertainty').textContent = trans['label-avg-uncertainty'];
+            document.getElementById('label-confidence-level').textContent = trans['label-confidence-level'];
+            document.getElementById('report-details-title').textContent = trans['report-details-title'];
+            document.getElementById('th-mode').textContent = trans['th-mode'];
+            document.getElementById('th-probability').textContent = trans['th-probability'];
+            document.getElementById('th-position').textContent = trans['th-position'];
+            document.getElementById('th-distance').textContent = trans['th-distance'];
+            document.getElementById('report-analysis-title').textContent = trans['report-analysis-title'];
+            document.getElementById('analysis-placeholder').textContent = trans['analysis-placeholder'];
+        }
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let points = [];
+        let selectedPoint = null;
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, i); ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+            
+            if (points.length > 1) {
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x, points[i].y);
+                }
+                ctx.stroke();
+                
+                points.forEach((p, i) => {
+                    ctx.fillStyle = '#3498db';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(i, p.x, p.y + 4);
+                });
+            }
+            
+            if (predictedTrajectories.length > 0) {
+                const colors = ['#FF6B6B', '#4ECDC4', '#9B59B6'];
+                
+                predictedTrajectories.forEach((traj, idx) => {
+                    ctx.strokeStyle = colors[idx];
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([8, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(points[points.length-1].x, points[points.length-1].y);
+                    
+                    traj.forEach(point => {
+                        ctx.lineTo(points[points.length-1].x + point[0] * 10, 
+                                  points[points.length-1].y - point[1] * 10);
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    const lastPoint = traj[traj.length - 1];
+                    const endX = points[points.length-1].x + lastPoint[0] * 10;
+                    const endY = points[points.length-1].y - lastPoint[1] * 10;
+                    
+                    ctx.fillStyle = colors[idx];
+                    ctx.beginPath();
+                    ctx.arc(endX, endY, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(idx+1, endX, endY + 3);
+                });
+            }
+        }
+        
+        async function loadDemo() {
+            const response = await fetch('/demo');
+            const data = await response.json();
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            points = data.trajectory.map((p, i) => ({
+                x: centerX + p[0] * 25,
+                y: centerY - p[1] * 25
+            }));
+            predictedTrajectories = [];
+            document.getElementById('predictionReport').style.display = 'none';
+            document.getElementById('probDisplay').innerHTML = '';
+            draw();
+        }
+        
+        async function runPrediction() {
+            if (points.length < 20) {
+                if (currentLang === 'zh') {
+                    alert('请至少添加20个点，或点击加载演示');
+                } else {
+                    alert('Please add at least 20 points, or click Load Demo');
+                }
+                return;
+            }
+            
+            const origin = { x: points[0].x, y: points[0].y };
+            const trajectory = points.map(p => [p.x - origin.x, origin.y - p.y]);
+            
+            try {
+                const response = await fetch('/api/v1/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trajectory, return_uncertainty: true, top_k: 3 })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    predictedTrajectories = result.data.trajectories;
+                    lastPredictionData = result.data;
+                    
+                    updateProbDisplay(result.data);
+                    updateReport(result.data);
+                    draw();
+                } else {
+                    alert(translations[currentLang]['prediction-failed'] + result.error);
+                }
+            } catch (e) {
+                alert(translations[currentLang]['error'] + e.message);
+            }
+        }
+        
+        function updateReport(data) {
+            document.getElementById('predictionReport').style.display = 'block';
+            
+            document.getElementById('bestMode').textContent = translations[currentLang]['mode-label'].replace('{mode}', data.summary.best_mode);
+            document.getElementById('confidence').textContent = `${(data.summary.confidence * 100).toFixed(1)}%`;
+            document.getElementById('confidenceBar').style.width = `${data.summary.confidence * 100}%`;
+            
+            document.getElementById('obsPoints').textContent = data.summary.observation_points;
+            document.getElementById('predHorizon').textContent = data.summary.prediction_horizon;
+            document.getElementById('avgUncertainty').textContent = data.summary.avg_uncertainty.toFixed(4);
+            
+            const levelBadge = document.getElementById('confidenceLevel');
+            const confidence = data.summary.confidence;
+            if (confidence >= 0.7) {
+                levelBadge.textContent = currentLang === 'zh' ? '高' : 'High';
+                levelBadge.className = 'badge badge-high';
+            } else if (confidence >= 0.4) {
+                levelBadge.textContent = currentLang === 'zh' ? '中' : 'Medium';
+                levelBadge.className = 'badge badge-medium';
+            } else {
+                levelBadge.textContent = currentLang === 'zh' ? '低' : 'Low';
+                levelBadge.className = 'badge badge-low';
+            }
+            
+            const tbody = document.getElementById('trajectoryDetails');
+            tbody.innerHTML = '';
+            
+            const colors = ['#FF6B6B', '#4ECDC4', '#9B59B6'];
+            const trans = translations[currentLang];
+            
+            data.statistics.forEach((stat, idx) => {
+                const row = document.createElement('tr');
+                const modeLabel = trans['mode-label'].replace('{mode}', stat.mode);
+                row.innerHTML = `
+                    <td><span style="color: ${colors[idx]}; font-weight: bold;">${modeLabel}</span></td>
+                    <td>${(stat.probability * 100).toFixed(1)}%</td>
+                    <td>(${stat.final_x.toFixed(2)}, ${stat.final_y.toFixed(2)})</td>
+                    <td>${stat.total_distance.toFixed(2)} ${currentLang === 'zh' ? '米' : 'm'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            updateAnalysis(data);
+        }
+        
+        function updateAnalysis(data) {
+            const reportDiv = document.getElementById('analysisReport');
+            const bestMode = data.summary.best_mode;
+            const confidence = data.summary.confidence;
+            const stats = data.statistics;
+            const trans = translations[currentLang];
+            
+            let analysis = trans['analysis-prefix'];
+            analysis += trans['analysis-intro'].replace('{count}', stats.length);
+            
+            const bestStat = stats[bestMode - 1];
+            analysis += trans['analysis-best']
+                .replace('{mode}', bestMode)
+                .replace('{x}', bestStat.final_x.toFixed(2))
+                .replace('{y}', bestStat.final_y.toFixed(2))
+                .replace('{dist}', bestStat.total_distance.toFixed(2));
+            
+            if (confidence >= 0.7) {
+                analysis += trans['analysis-high'];
+            } else if (confidence >= 0.4) {
+                analysis += trans['analysis-medium'];
+            } else {
+                analysis += trans['analysis-low'];
+            }
+            
+            analysis += trans['analysis-comparison'];
+            analysis += '<ul>';
+            stats.forEach((stat, idx) => {
+                const isBest = idx === bestMode - 1;
+                const modeLabel = trans['mode-label'].replace('{mode}', stat.mode);
+                const bestTag = isBest ? trans['best-tag'] : '';
+                analysis += `<li>${modeLabel} ${bestTag}: Probability ${(stat.probability * 100).toFixed(1)}%, `;
+                analysis += `${trans['end-point-label'].replace('{x}', stat.final_x.toFixed(2)).replace('{y}', stat.final_y.toFixed(2))}</li>`;
+            });
+            analysis += '</ul>';
+            
+            analysis += trans['analysis-recommendation'];
+            
+            reportDiv.innerHTML = analysis;
+        }
+        
+        function clearCanvas() {
+            points = [];
+            predictedTrajectories = [];
+            document.getElementById('probDisplay').innerHTML = '';
+            document.getElementById('predictionReport').style.display = 'none';
+            draw();
+        }
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            for (let i = 0; i < points.length; i++) {
+                const dist = Math.sqrt((x - points[i].x)**2 + (y - points[i].y)**2);
+                if (dist < 12) {
+                    selectedPoint = i;
+                    return;
+                }
+            }
+            
+            if (points.length < 30) {
+                points.push({ x, y });
+                draw();
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (selectedPoint === null) return;
+            const rect = canvas.getBoundingClientRect();
+            points[selectedPoint].x = e.clientX - rect.left;
+            points[selectedPoint].y = e.clientY - rect.top;
+            draw();
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            selectedPoint = null;
+        });
+        
+        let predictedTrajectories = [];
+        draw();
+    </script>
+</body>
+</html>
+    
