@@ -2,7 +2,7 @@
 
 给模型看一辆车过去 2 秒的轨迹，让它猜接下来 3 秒怎么走。
 
----
+***
 
 ## 傻瓜式操作（一步一步跟着做）
 
@@ -24,9 +24,9 @@ cd ChronoMotion_easy\Vector\yet-another-vectornet
 
 ### 3. 放数据
 
-项目不带完整数据集（太大），需要你自己下载 Argoverse 1.1 Motion Forecasting：
+项目不带完整数据集（太大）没在项目里，需要你使用我发的数据集或者自己下载 Argoverse 1.1 Motion Forecasting：
 
-> 官网：https://www.argoverse.org/av1.html（注册后下载）
+> 官网：<https://www.argoverse.org/av1.html（注册后下载）>
 >
 > 下载 **Argoverse Motion Forecasting v1.1** 下的 Training、Validation、Testing 三个包。
 
@@ -49,6 +49,7 @@ pip install torch numpy matplotlib tqdm
 ```
 
 > 想玩网页版再多装一个：
+>
 > ```bash
 > pip install flask
 > ```
@@ -73,12 +74,12 @@ python enhanced_train.py
 
 想调参数？打开 `config.json`，改完保存再跑：
 
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| batch_size | 8 | 显存不够改 2 |
-| epochs | 100 | 训练轮数 |
-| lr | 0.001 | 学习率 |
-| k_modes | 3 | 输出几条候选路线 |
+| 参数          | 默认值   | 说明       |
+| ----------- | ----- | -------- |
+| batch\_size | 8     | 显存不够改 2  |
+| epochs      | 100   | 训练轮数     |
+| lr          | 0.001 | 学习率      |
+| k\_modes    | 3     | 输出几条候选路线 |
 
 也可以命令行临时覆盖：
 
@@ -110,7 +111,7 @@ python demo_app.py
 
 浏览器打开 `http://localhost:5000`，用鼠标画轨迹，点 Predict 看预测。
 
----
+***
 
 ## 每个文件干什么的
 
@@ -154,14 +155,15 @@ Vector/yet-another-vectornet/
     └── index.html           ← Web前端页面
 ```
 
----
+***
 
 ## 常见报错
 
-| 报错 | 怎么办 |
-|------|--------|
-| `No module named 'torch'` | 回到第 4 步，`pip install torch` |
-| `No module named 'flask'` | `pip install flask` |
+| 报错                              | 怎么办                                                       |
+| ------------------------------- | --------------------------------------------------------- |
+| `No module named 'torch'`       | 回到第 4 步，`pip install torch`                               |
+| `No module named 'flask'`       | `pip install flask`                                       |
 | `FileNotFoundError: mydata/...` | 确认你当前目录是 `ChronoMotion_easy\Vector\yet-another-vectornet` |
-| 训练跑不动/显存不够 | 打开 `config.json`，把 `batch_size` 改成 2 |
-| 数据太少/跑不出来 | 确认你下了完整数据集（几万个CSV），不是项目自带的14个示例 |
+| 训练跑不动/显存不够                      | 打开 `config.json`，把 `batch_size` 改成 2                      |
+| 数据太少/跑不出来                       | 确认你下了完整数据集（几万个CSV），不是项目自带的14个示例                           |
+
