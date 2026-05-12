@@ -1,169 +1,190 @@
-# ChronoMotion — 轨迹预测
+# ChronoMotion
 
-给模型看一辆车过去 2 秒的轨迹，让它猜接下来 3 秒怎么走。
+基于 VectorNet 架构的自动驾驶轨迹预测系统。支持多模态轨迹预测（K=3 条候选轨迹），提供训练、评估、预测和 Web 可视化 Demo。
 
-***
+## 项目结构
 
-## 傻瓜式操作（一步一步跟着做）
-
-### 1. 拉代码
-
-打开终端（PowerShell 或 CMD），复制粘贴下面这行，回车：
-
-```bash
-git clone https://github.com/emantvery/ChronoMotion_easy.git
+```
+zxzx/
+├── Vector/
+│   └── yet-another-vectornet/    # 增强版——纯 PyTorch 实现
+│       ├── enhanced_train.py      # 训练脚本
+│       ├── predict.py             # 单文件预测脚本
+│       ├── evaluate.py            # 批量评估脚本
+│       ├── model.py               # 模型定义（MLPEncoder + MultiModalVectorNet）
+│       ├── check.py               # 冒烟测试（验证模型/配置/设备）
+│       ├── config.json            # 训练配置文件
+│       ├── demo_app.py            # Web 可视化 Demo
+│       ├── templates/index.html   # Web 前端界面
+│       ├── Dockerfile             # Docker 容器化部署
+│       └── requirements.txt       # Python 依赖
+└── docs/                          # 项目文档
+    ├── PROJECT_GUIDE.md           # 增强版操作指南
+    └── REFACTOR_PLAN.md           # 版本对比与融合计划
 ```
 
-等它跑完。
+## 快速开始
 
-### 2. 进入项目目录
+### 1. 创建虚拟环境
 
-```bash
-cd ChronoMotion_easy\Vector\yet-another-vectornet
+```powershell
+python -m venv TraeAI-4
+.\TraeAI-4\Scripts\Activate.ps1
 ```
 
-### 3. 放数据
+### 2. 安装依赖
 
-项目不带完整数据集（太大）没在项目里，需要你使用我发的数据集或者自己下载 Argoverse 1.1 Motion Forecasting：
-
-> 官网：<https://www.argoverse.org/av1.html（注册后下载）>
->
-> 下载 **Argoverse Motion Forecasting v1.1** 下的 Training、Validation、Testing 三个包。
-
-解压后会得到 `train/`、`val/`、`test/` 三个文件夹（里面全是 CSV），**直接覆盖**项目里 `mydata/` 下面同名文件夹：
-
-```bash
-# 假设你解压到了 D:\argoverse_data\
-# 把解压出来的 CSV 复制进 mydata/
-cp D:\argoverse_data\train\* mydata\train\
-cp D:\argoverse_data\val\*   mydata\val\
-cp D:\argoverse_data\test\*  mydata\test\
+```powershell
+cd Vector\yet-another-vectornet
+pip install -r requirements.txt
 ```
 
-> 项目里原来有 14 个示例 CSV，覆盖掉就行。
+### 3. GPU 支持（推荐）
 
-### 4. 装依赖
+如果你有 NVIDIA GPU（如 RTX 3060），使用 GPU 版 PyTorch 可以加速训练。
 
-```bash
-pip install torch numpy matplotlib tqdm
+```powershell
+# 1. 安装 Visual C++ 运行时（如遇到 DLL 加载错误）
+winget install Microsoft.VCRedist.2015+.x64
+
+# 2. 安装 CUDA 版 PyTorch
+pip install torch==2.6.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+# 3. 验证 GPU 可用
+python -c "import torch; print('CUDA:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0))"
 ```
 
-> 想玩网页版再多装一个：
->
-> ```bash
-> pip install flask
-> ```
+### 4. 冒烟测试
 
-### 5. 验证环境
-
-```bash
+```powershell
 python check.py
 ```
 
-看到最后一行是 **`ALL CHECKS PASSED`** 就说明装好了。
+输出应显示模型参数数量（~198K）、输入/输出形状，并打印 `ALL CHECKS PASSED`。
 
-> 如果报 `No module named 'torch'`，回到第 4 步重装。
+## 数据准备
 
-### 6. 开始训练
+### 数据格式
 
-```bash
+CSV 文件，每行包含 agent 的一条轨迹记录：
+```
+TIMESTAMP,TRACK_ID,OBJECT_TYPE,X,Y,HEADING,VX,VY,SCENARIO_ID,CITY_NAME,INTERSECTION
+```
+
+### 目录结构
+
+```
+yet-another-vectornet/mydata/
+├── train/    # 训练集（205,472 条）
+├── val/      # 验证集（39,472 条）
+└── test/     # 测试集（39,472 条）
+```
+
+**注意**：数据集文件不随代码仓库一同提交，请自行将数据放入 `mydata/` 目录。
+
+## 训练
+
+### 配置文件（config.json）
+
+```json
+{
+    "data_dir": "./mydata",
+    "obs_len": 20,
+    "pred_len": 30,
+    "feature_dim": 8,
+    "hidden_dim": 128,
+    "k_modes": 3,
+    "out_dim": 60,
+    "batch_size": 64,
+    "epochs": 20,
+    "lr": 0.001,
+    "num_workers": 0,
+    "decay_lr_factor": 0.3,
+    "decay_lr_every": 10,
+    "seed": 13,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0
+}
+```
+
+| 参数 | 说明 |
+|------|------|
+| `obs_len` | 观测帧数（20 帧 = 2 秒） |
+| `pred_len` | 预测帧数（30 帧 = 3 秒） |
+| `k_modes` | 多模态预测数量（=3） |
+| `batch_size` | 批次大小（64，适配 RTX 3060 6GB） |
+| `epochs` | 训练轮数 |
+
+### 开始训练
+
+```powershell
 python enhanced_train.py
 ```
 
-等它跑完。跑完之后目录下会生成 `best_multimodal_model.pth` 和几张预测效果图。
+### 预期性能
 
-想调参数？打开 `config.json`，改完保存再跑：
+| 设备 | batch_size | 速度 | 20 epoch 时间 |
+|------|-----------|------|--------------|
+| RTX 3060 6GB | 64 | ~1.15 it/s | ~14 小时 |
+| 内存预加载模式 | 64 | ~15-25 it/s | ~40-60 分钟 |
 
-| 参数          | 默认值   | 说明       |
-| ----------- | ----- | -------- |
-| batch\_size | 8     | 显存不够改 2  |
-| epochs      | 100   | 训练轮数     |
-| lr          | 0.001 | 学习率      |
-| k\_modes    | 3     | 输出几条候选路线 |
+当前瓶颈在于从 20 万个小 CSV 文件读取数据（磁盘 `fopen()` 开销），而非 GPU 计算能力。
 
-也可以命令行临时覆盖：
+模型权重保存为 `best_multimodal_model.pth`，包含 `model_state_dict`、`optimizer_state_dict` 和 `config`，支持断点续训。
 
-```bash
-python enhanced_train.py --epochs 10 --batch_size 4
+## 推理与评估
+
+### 单文件预测
+
+```powershell
+python predict.py
 ```
+输入文件名（如 `893.csv`），输出预测轨迹 JSON。
 
-### 7. 预测
+### 批量评估
 
-```bash
-python predict.py --input mydata/test/893.csv --model best_multimodal_model.pth --output ./result
+```powershell
+python evaluate.py
 ```
+计算验证集上的 ADE / FDE 指标。
 
-打开 `result/prediction.png` 看结果。
+## Web 可视化 Demo
 
-### 8. 评估
-
-```bash
-python evaluate.py --model best_multimodal_model.pth --data ./mydata --split test --output ./eval_result
-```
-
-生成报告 + 图表。
-
-### 9. （可选）网页版
-
-```bash
+```powershell
 python demo_app.py
 ```
 
-浏览器打开 `http://localhost:5000`，用鼠标画轨迹，点 Predict 看预测。
+浏览器打开 `http://localhost:5000`，拖拽 CSV 文件即可查看预测结果可视化。
 
-***
+## Docker 部署
 
-## 每个文件干什么的
-
-```
-Vector/yet-another-vectornet/
-│
-├── model.py                 ← ★ 模型定义文件
-│     MLPEncoder             — 3层MLP编码器（把8维特征变成128维）
-│     AttentionPooling       — 注意力池化（给20帧加权求出一个向量）
-│     MultiModalVectorNet    — 主模型（编码→注意力→K条轨迹+概率+不确定性）
-│     MultiModalLoss         — 损失函数（best-of-K MSE + 交叉熵）
-│     LinearPredictor        — 线性基线模型（对比用）
-│     LSTMPredictor          — LSTM基线模型（对比用）
-│
-├── enhanced_train.py        ← ★ 训练入口
-│     read_csv_file()        — 读CSV文件
-│     get_agent_trajectory() — 提取目标车轨迹
-│     get_others_trajectories() — 提取周围车辆轨迹
-│     TrajectoryDataset      — 数据集类（把CSV转成(B,20,8)的tensor）
-│     train_epoch()          — 训练一轮
-│     evaluate()             — 验证一轮（best-of-K ADE/FDE）
-│     TrajectoryVisualizer   — 可视化类
-│     main()                 — 主函数
-│
-├── predict.py               ← 预测工具（命令行）
-├── evaluate.py              ← 评估工具（命令行）
-├── demo_app.py              ← Web演示（Flask + Canvas）
-│
-├── config.json              ← 所有超参数（改这个不用改代码）
-├── requirements.txt         ← 依赖包列表（pip install -r 一键装）
-├── check.py                 ← 冒烟测试（跑一遍验证环境是否正常）
-├── .gitignore               ← Git忽略规则（不提交模型权重/缓存）
-├── Dockerfile               ← Docker镜像配置
-│
-├── mydata/                  ← ★ 数据（放下载好的Argoverse CSV）
-│   ├── train/
-│   ├── val/
-│   └── test/
-│
-└── templates/
-    └── index.html           ← Web前端页面
+```powershell
+cd Vector\yet-another-vectornet
+docker build -t chronomotion .
+docker run -p 5000:5000 chronomotion
 ```
 
-***
+## 版本说明
 
-## 常见报错
+本仓库包含两个版本的实现：
 
-| 报错                              | 怎么办                                                       |
-| ------------------------------- | --------------------------------------------------------- |
-| `No module named 'torch'`       | 回到第 4 步，`pip install torch`                               |
-| `No module named 'flask'`       | `pip install flask`                                       |
-| `FileNotFoundError: mydata/...` | 确认你当前目录是 `ChronoMotion_easy\Vector\yet-another-vectornet` |
-| 训练跑不动/显存不够                      | 打开 `config.json`，把 `batch_size` 改成 2                      |
-| 数据太少/跑不出来                       | 确认你下了完整数据集（几万个CSV），不是项目自带的14个示例                           |
+| | 增强版（当前使用） | 原始 PyG 版 |
+|---|---|---|
+| **代码** | `Vector/yet-another-vectornet/` | `Vector（驾驶轨迹预测）/yet-another-vectornet/` |
+| **架构** | MLP Encoder + AttentionPooling + MLP Predictor | 真正的 VectorNet 分层 GNN（MessagePassing） |
+| **输入** | Agent 轨迹 (20, 8) | Agent + 周围车辆 + 车道拓扑 |
+| **优势** | 训练快、轻量、易部署 | 更准确、符合论文设计 |
+| **劣势** | 预测精度有限 | 训练慢（2h/epoch）、需要 PyG 安装 |
 
+如需使用原始版，请参考 [Google Drive](https://drive.google.com/drive/folders/1XJ2Oz4Qc2UstnfRw3DNvQThuEVvM6tUL) 上的预处理数据和 `docs/REFACTOR_PLAN.md`。
+
+## 常见问题
+
+**Q: 训练很慢怎么办？**
+A: 瓶颈是磁盘 I/O（20 万个小 CSV 文件）。可以做内存预加载——先将所有 CSV 读入一个 `.pt` 文件，训练时直接加载到内存，速度可提升 10-20 倍。
+
+**Q: GPU 不可用？**
+A: 确保安装了 Visual C++ Redistributable（`winget install Microsoft.VCRedist.2015+.x64`），然后安装 CUDA 版 PyTorch。重启终端后验证。
+
+**Q: 预测精度不够？**
+A: 增强版使用简化的 MLP 预测器，精度有限。如需更高精度，可切换到原始 VectorNet GNN 版本或对增强版做进一步优化。

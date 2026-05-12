@@ -3,8 +3,12 @@ __pycache__/
 *.pyc
 *.pth
 *.pkl
+*.pt
 *.png
 *.mp4
 *.pdf
 .DS_Store
 技术报告.txt
+_*.py
+*log*.txt
+mydata/
