@@ -87,6 +87,7 @@ def visualize_prediction(obs_traj, result, output_path, gt_traj=None):
 def batch_predict(model, input_dir, output_dir, device='cpu', max_files=None):
     os.makedirs(output_dir, exist_ok=True)
     csv_files = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
+    csv_files.sort(key=lambda x: int(x.replace('.csv', '')))
     if max_files is not None and max_files > 0:
         csv_files = csv_files[:max_files]
         print(f"Limiting to first {len(csv_files)} files")

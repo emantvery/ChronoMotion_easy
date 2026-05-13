@@ -81,6 +81,7 @@ class TrajectoryDataset(Dataset):
     def __init__(self, data_dir, split='train', obs_len=20, pred_len=30, feature_dim=8):
         self.data_dir = os.path.join(data_dir, split)
         self.files = [f for f in os.listdir(self.data_dir) if f.endswith('.csv')]
+        self.files.sort(key=lambda x: int(x.replace('.csv', '')))
         self.obs_len = obs_len
         self.pred_len = pred_len
         self.feature_dim = feature_dim
