@@ -225,6 +225,19 @@ if __name__ == '__main__':
         .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
         .badge-high { background: #d4edda; color: #155724; } .badge-medium { background: #fff3cd; color: #856404; } .badge-low { background: #f8d7da; color: #721c24; }
         .summary-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .analysis-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+        .analysis-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .analysis-card h3 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; margin-bottom: 15px; }
+        .analysis-card.full { grid-column: 1 / -1; }
+        .suggestion-item { padding: 12px 16px; margin: 8px 0; border-radius: 8px; border-left: 4px solid #3498db; background: #f0f7ff; }
+        .suggestion-item.warn { border-left-color: #e74c3c; background: #fff5f5; }
+        .suggestion-item.good { border-left-color: #27ae60; background: #f0fff4; }
+        .mode-compare-bar { display: flex; align-items: center; margin: 8px 0; gap: 10px; }
+        .mode-compare-bar .mode-name { width: 60px; font-weight: bold; font-size: 14px; }
+        .mode-compare-bar .bar-bg { flex: 1; height: 22px; background: #e9ecef; border-radius: 11px; overflow: hidden; }
+        .mode-compare-bar .bar-fill { height: 100%; border-radius: 11px; transition: width 0.5s ease; display: flex; align-items: center; padding-left: 10px; color: white; font-size: 12px; font-weight: bold; }
+        .analysis-summary-text { font-size: 14px; line-height: 1.8; color: #444; }
+        .analysis-summary-text b { color: #2c3e50; }
     </style>
 </head>
 <body>
@@ -276,6 +289,26 @@ if __name__ == '__main__':
                 </table>
             </div>
         </div>
+        <div id="analysisSection" style="display:none;">
+            <div class="analysis-container">
+                <div class="analysis-card full">
+                    <h3 id="anaSummaryTitle">预测结果总结</h3>
+                    <div class="analysis-summary-text" id="analysisSummary"></div>
+                </div>
+                <div class="analysis-card">
+                    <h3 id="anaBestTitle">最佳预测模式分析</h3>
+                    <div id="analysisBest"></div>
+                </div>
+                <div class="analysis-card">
+                    <h3 id="anaCompareTitle">三种模式对比</h3>
+                    <div id="modeCompare"></div>
+                </div>
+                <div class="analysis-card full">
+                    <h3 id="anaSuggestionTitle">继续行车建议</h3>
+                    <div id="suggestions"></div>
+                </div>
+            </div>
+        </div>
     </div>
     <script>
         let currentLang = 'zh';
@@ -291,7 +324,22 @@ if __name__ == '__main__':
                 confLabel: '置信等级', detailTitle: '轨迹详情',
                 thMode: '模式', thProb: '概率', thEnd: '终点', thDist: '总距离',
                 mode: '模式', need20: '需要至少20个观测点', fail: '预测失败: ', error: '错误: ',
-                high: '高', medium: '中', low: '低'
+                high: '高', medium: '中', low: '低',
+                anaSummaryTitle: '预测结果总结', anaBestTitle: '最佳预测模式分析',
+                anaCompareTitle: '三种模式对比', anaSuggestionTitle: '继续行车建议',
+                summaryTpl: '基于过去 <b>{obs}</b> 个观测点的运动特征，模型以 <b>{conf}%</b> 的置信度选择 <b>模式{best}</b> 作为最优预测。预测终点位于相对坐标 <b>({ex}, {ey})</b>，3秒内总行驶距离约 <b>{dist}米</b>。',
+                confHigh: '置信度高，预测结果较为可靠。',
+                confMid: '置信度中等，预测趋势明确但存在一定不确定性。',
+                confLow: '置信度偏低，实际情况可能有较大变化，建议结合其他信息综合判断。',
+                bestDetailTpl: '<p style="line-height:1.8;">模型认为该模式最可能发生，概率为 <b style="color:#ff6b6b;">{prob}%</b>。车辆将沿预测轨迹行驶，终点坐标 <b>({ex}, {ey})</b>，平均速度约 <b>{speed} m/s</b>（{speed_km} km/h）。此模式反映了当前运动趋势下最可能的行为。</p>',
+                compareIntro: '三种模式代表三种可能的未来轨迹，概率越高表示模型越倾向该行为：',
+                suggestionStraight: '车辆呈直线行驶趋势，<b>建议保持当前速度和车道</b>，无需额外操作。',
+                suggestionCurve: '车辆呈转弯趋势，请注意<b>减速并观察转弯方向</b>的障碍物。转向角度较大时需谨慎。',
+                suggestionLaneChange: '车辆呈现换道或侧向偏移趋势，<b>建议观察相邻车道车辆</b>，确认安全后再变道。',
+                suggestionSpeedUp: '车辆呈加速趋势，<b>注意前方车距</b>，避免追尾。',
+                suggestionSlowDown: '车辆呈减速趋势，<b>提醒后方车辆</b>注意，保持安全距离。',
+                suggestionUncertain: '各模式概率相近，运动趋势不明朗。<b>建议保持警觉</b>，关注周围车辆动态，做好多种应对准备。',
+                summaryHigh: '高', summaryMid: '中', summaryLow: '低'
             },
             en: {
                 title: 'Multi-Modal Trajectory Prediction System', subtitle: 'Lightweight Autonomous Driving Trajectory Prediction',
@@ -302,7 +350,22 @@ if __name__ == '__main__':
                 confLabel: 'Confidence', detailTitle: 'Trajectory Details',
                 thMode: 'Mode', thProb: 'Prob', thEnd: 'End Point', thDist: 'Distance',
                 mode: 'Mode', need20: 'Need at least 20 points', fail: 'Failed: ', error: 'Error: ',
-                high: 'High', medium: 'Medium', low: 'Low'
+                high: 'High', medium: 'Medium', low: 'Low',
+                anaSummaryTitle: 'Prediction Summary', anaBestTitle: 'Best Mode Analysis',
+                anaCompareTitle: 'Mode Comparison', anaSuggestionTitle: 'Driving Suggestions',
+                summaryTpl: 'Based on <b>{obs}</b> observed points, the model selects <b>Mode {best}</b> with <b>{conf}%</b> confidence. The predicted endpoint is at <b>({ex}, {ey})</b>, with total distance of ~<b>{dist}m</b> over 3 seconds.',
+                confHigh: 'High confidence — prediction is reliable.',
+                confMid: 'Medium confidence — clear trend with some uncertainty.',
+                confLow: 'Low confidence — actual situation may vary. Consider additional context.',
+                bestDetailTpl: '<p style="line-height:1.8;">This mode has the highest probability at <b style="color:#ff6b6b;">{prob}%</b>. The vehicle will travel to <b>({ex}, {ey})</b> at an average speed of <b>{speed} m/s</b> ({speed_km} km/h). This reflects the most likely behavior given the current motion.</p>',
+                compareIntro: 'Three modes represent three possible future trajectories:',
+                suggestionStraight: 'Vehicle shows straight-line motion. <b>Maintain current speed and lane</b>.',
+                suggestionCurve: 'Vehicle shows a turning trend. <b>Slow down and watch</b> for obstacles in the turn direction.',
+                suggestionLaneChange: 'Vehicle shows lateral movement. <b>Check adjacent lanes</b> before changing.',
+                suggestionSpeedUp: 'Vehicle is accelerating. <b>Maintain safe following distance</b> to avoid rear-end collision.',
+                suggestionSlowDown: 'Vehicle is decelerating. <b>Alert following vehicles</b> and keep safe distance.',
+                suggestionUncertain: 'Mode probabilities are similar — motion trend unclear. <b>Stay alert</b> and monitor surroundings.',
+                summaryHigh: 'High', summaryMid: 'Medium', summaryLow: 'Low'
             }
         };
 
@@ -334,7 +397,11 @@ if __name__ == '__main__':
             elem('thProb').textContent = t('thProb');
             elem('thEnd').textContent = t('thEnd');
             elem('thDist').textContent = t('thDist');
-            if (lastPredictionData) { updateReport(lastPredictionData); updateProbDisplay(lastPredictionData); }
+            elem('anaSummaryTitle').textContent = t('anaSummaryTitle');
+            elem('anaBestTitle').textContent = t('anaBestTitle');
+            elem('anaCompareTitle').textContent = t('anaCompareTitle');
+            elem('anaSuggestionTitle').textContent = t('anaSuggestionTitle');
+            if (lastPredictionData) { updateReport(lastPredictionData); updateProbDisplay(lastPredictionData); updateAnalysis(lastPredictionData); }
         }
 
         function updateProbDisplay(data) {
@@ -380,7 +447,7 @@ if __name__ == '__main__':
             var r=await fetch('/demo'); var d=await r.json();
             var cx=canvas.width/2, cy=canvas.height/2;
             points=d.trajectory.map((p,i)=>({x:cx+p[0]*25, y:cy-p[1]*25}));
-            predictedTrajectories=[]; elem('predictionReport').style.display='none'; elem('probDisplay').innerHTML=''; draw();
+            predictedTrajectories=[]; elem('predictionReport').style.display='none'; elem('analysisSection').style.display='none'; elem('probDisplay').innerHTML=''; draw();
         }
 
         async function runPrediction() {
@@ -390,7 +457,7 @@ if __name__ == '__main__':
             try{
                 var r=await fetch('/api/v1/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({trajectory:traj, top_k:3})});
                 var d=await r.json();
-                if(d.success){predictedTrajectories=d.data.trajectories; lastPredictionData=d.data; updateProbDisplay(d.data); updateReport(d.data); draw();}
+                if(d.success){predictedTrajectories=d.data.trajectories; lastPredictionData=d.data; updateProbDisplay(d.data); updateReport(d.data); updateAnalysis(d.data); draw();}
                 else alert(t('fail')+d.error);
             }catch(e){alert(t('error')+e.message);}
         }
@@ -416,7 +483,83 @@ if __name__ == '__main__':
             });
         }
 
-        function clearCanvas(){points=[]; predictedTrajectories=[]; elem('probDisplay').innerHTML=''; elem('predictionReport').style.display='none'; draw();}
+        function updateAnalysis(data) {
+            elem('analysisSection').style.display = 'block';
+            var st = data.statistics.slice(), s = data.summary;
+
+            st.sort(function(a,b){ return b.probability - a.probability; });
+            var bestMode = st[0], conf = s.confidence;
+
+            // 1. Summary
+            var summaryHtml = t('summaryTpl')
+                .replace('{obs}', s.observation_points)
+                .replace('{conf}', (conf*100).toFixed(1))
+                .replace('{best}', bestMode.mode)
+                .replace('{ex}', bestMode.final_x.toFixed(2))
+                .replace('{ey}', bestMode.final_y.toFixed(2))
+                .replace('{dist}', bestMode.total_distance.toFixed(2));
+            if (conf >= 0.7) summaryHtml += ' ' + t('confHigh');
+            else if (conf >= 0.4) summaryHtml += ' ' + t('confMid');
+            else summaryHtml += ' ' + t('confLow');
+            elem('analysisSummary').innerHTML = summaryHtml;
+
+            // 2. Best Mode Analysis
+            var bestHtml = t('bestDetailTpl')
+                .replace(/{prob}/g, (bestMode.probability*100).toFixed(1))
+                .replace(/{ex}/g, bestMode.final_x.toFixed(2))
+                .replace(/{ey}/g, bestMode.final_y.toFixed(2))
+                .replace(/{speed}/g, bestMode.avg_speed.toFixed(2))
+                .replace('{speed_km}', (bestMode.avg_speed*3.6).toFixed(1));
+            elem('analysisBest').innerHTML = bestHtml;
+
+            // 3. Mode Comparison
+            var cmpColors = ['#FF6B6B','#4ECDC4','#9B59B6'];
+            var compHtml = '<p style="margin-bottom:12px;">' + t('compareIntro') + '</p>';
+            st.forEach(function(m, i){
+                compHtml += '<div class="mode-compare-bar">' +
+                    '<span class="mode-name" style="color:' + cmpColors[i] + ';">' + t('mode') + ' ' + m.mode + '</span>' +
+                    '<div class="bar-bg"><div class="bar-fill" style="width:' + (m.probability*100) + '%;background:' + cmpColors[i] + ';">' +
+                    (m.probability*100).toFixed(1) + '%</div></div>' +
+                    '<span style="font-size:12px;color:#666;">' + m.total_distance.toFixed(1) + 'm</span></div>';
+            });
+            elem('modeCompare').innerHTML = compHtml;
+
+            // 4. Driving Suggestions
+            var sugs = [];
+            var diffs = [];
+            st.forEach(function(m, i){
+                if (i > 0) diffs.push(Math.abs(m.final_x - st[0].final_x) + Math.abs(m.final_y - st[0].final_y));
+            });
+            var maxDiff = Math.max.apply(null, diffs);
+            var probs = st.map(function(m){ return m.probability; });
+            var probSpread = probs[0] - probs[probs.length-1];
+            var bestSpeed = st[0].avg_speed;
+
+            // check uncertainty
+            if (probSpread < 0.2) {
+                sugs.push({cls: 'warn', text: t('suggestionUncertain')});
+            }
+
+            // check trajectory shape: compare first half vs second half direction
+            if (bestSpeed < 2) {
+                sugs.push({cls: '', text: t('suggestionSlowDown')});
+            } else if (bestSpeed > 12) {
+                sugs.push({cls: 'warn', text: t('suggestionSpeedUp')});
+            } else {
+                sugs.push({cls: 'good', text: t('suggestionStraight')});
+            }
+
+            // check mode divergence
+            if (maxDiff > 5) {
+                sugs.push({cls: 'warn', text: t('suggestionLaneChange')});
+            }
+
+            var sugHtml = '';
+            sugs.forEach(function(s){ sugHtml += '<div class="suggestion-item ' + s.cls + '">' + s.text + '</div>'; });
+            elem('suggestions').innerHTML = sugHtml;
+        }
+
+        function clearCanvas(){points=[]; predictedTrajectories=[]; elem('probDisplay').innerHTML=''; elem('predictionReport').style.display='none'; elem('analysisSection').style.display='none'; draw();}
         canvas.addEventListener('mousedown',e=>{
             var r=canvas.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
             for(var i=0;i<points.length;i++){if(Math.sqrt((x-points[i].x)**2+(y-points[i].y)**2)<12){selectedPoint=i;return;}}
