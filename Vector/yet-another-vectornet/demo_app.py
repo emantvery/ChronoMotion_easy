@@ -193,14 +193,14 @@ if __name__ == '__main__':
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Multi-Modal Trajectory Prediction System</title>
+    <title>多模态轨迹预测系统</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        body { font-family: Arial, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: #f5f5f5; position: relative; }
         #canvas { border: 2px solid #333; background: white; border-radius: 8px; }
         .controls { margin: 20px 0; }
         button { padding: 12px 24px; font-size: 16px; cursor: pointer; margin-right: 10px; border: none; border-radius: 5px; background: #3498db; color: white; transition: background 0.3s; }
         button:hover { background: #2980b9; }
-        button.lang-btn { padding: 6px 12px; font-size: 14px; background: #6c757d; width: 85px; min-width: 85px; max-width: 85px; text-align: center; box-sizing: border-box; height: 32px; line-height: 16px; }
+        button.lang-btn { padding: 6px 12px; font-size: 14px; background: #6c757d; width: 70px; text-align: center; box-sizing: border-box; height: 32px; }
         button.lang-btn:hover, button.lang-btn.active { background: #495057; }
         .prob-display { margin: 15px 0; padding: 15px; background: #fff; border-radius: 8px; }
         .mode-item { display: inline-block; margin-right: 15px; padding: 8px 20px; border-radius: 20px; font-weight: bold; }
@@ -225,54 +225,53 @@ if __name__ == '__main__':
         .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
         .badge-high { background: #d4edda; color: #155724; } .badge-medium { background: #fff3cd; color: #856404; } .badge-low { background: #f8d7da; color: #721c24; }
         .summary-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .summary-box h3 { margin-top: 0; }
     </style>
 </head>
 <body>
     <div class="lang-selector">
         <button id="lang-zh" class="lang-btn active" onclick="switchLang('zh')">中文</button>
-        <button id="lang-en" class="lang-btn" onclick="switchLang('en')">English</button>
+        <button id="lang-en" class="lang-btn" onclick="switchLang('en')">EN</button>
     </div>
     <div class="header">
-        <h1 id="title">Multi-Modal Trajectory Prediction System</h1>
-        <p id="subtitle">Lightweight Autonomous Driving Trajectory Prediction</p>
+        <h1 id="pageTitle">多模态轨迹预测系统</h1>
+        <p id="pageSubtitle">轻量化自动驾驶轨迹预测</p>
     </div>
     <div class="api-demo">
-        <h3>RESTful API</h3>
+        <h3 id="apiTitle">RESTful API</h3>
         <p>POST /api/v1/predict</p>
         <pre>{"trajectory": [[0,0],[1,0.5],...], "top_k": 3}</pre>
-        <p>Try: <a href="/api/v1/examples">Examples</a> | <a href="/api/v1/model_info">Model Info</a></p>
+        <p id="apiTry">试用: <a href="/api/v1/examples">示例</a> | <a href="/api/v1/model_info">模型信息</a></p>
     </div>
     <div class="controls">
-        <button onclick="loadDemo()">Load Demo</button>
-        <button onclick="runPrediction()">Predict</button>
-        <button onclick="clearCanvas()">Clear</button>
+        <button onclick="loadDemo()" id="btnLoadDemo">加载示例</button>
+        <button onclick="runPrediction()" id="btnPredict">开始预测</button>
+        <button onclick="clearCanvas()" id="btnClear">清除画布</button>
     </div>
     <canvas id="canvas" width="800" height="600"></canvas>
     <div class="prob-display" id="probDisplay"></div>
     <div id="predictionReport" style="display:none;">
         <div class="summary-box">
-            <h3>Prediction Summary</h3>
+            <h3 id="summaryTitle">预测摘要</h3>
             <div style="display:flex;gap:30px;">
-                <div><span style="font-size:24px;font-weight:bold;">Best Mode: </span><span id="bestMode" style="font-size:28px;color:#ffd700;">Mode 1</span></div>
-                <div><span style="font-size:20px;">Confidence: </span><span id="confidence" style="font-size:24px;font-weight:bold;">0%</span></div>
+                <div><span style="font-size:24px;font-weight:bold;" id="bestModeLabel">最佳模式: </span><span id="bestMode" style="font-size:28px;color:#ffd700;">-</span></div>
+                <div><span style="font-size:20px;" id="confidenceLabel">置信度: </span><span id="confidence" style="font-size:24px;font-weight:bold;">0%</span></div>
             </div>
             <div class="confidence-bar"><div id="confidenceBar" class="confidence-fill" style="width:0%"></div></div>
         </div>
         <div class="report-container">
             <div class="report-card">
-                <h3>Statistics</h3>
+                <h3 id="statsTitle">统计数据</h3>
                 <div class="stats-grid">
-                    <div class="stat-item"><div class="stat-label">Obs Points</div><div class="stat-value" id="obsPoints">0</div></div>
-                    <div class="stat-item"><div class="stat-label">Horizon</div><div class="stat-value" id="predHorizon">0</div></div>
-                    <div class="stat-item"><div class="stat-label">Avg Uncertainty</div><div class="stat-value" id="avgUncertainty">0</div></div>
-                    <div class="stat-item"><div class="stat-label">Confidence</div><div class="stat-value"><span id="confidenceLevel" class="badge">Low</span></div></div>
+                    <div class="stat-item"><div class="stat-label" id="obsLabel">观测点数</div><div class="stat-value" id="obsPoints">0</div></div>
+                    <div class="stat-item"><div class="stat-label" id="horizonLabel">预测时长</div><div class="stat-value" id="predHorizon">0</div></div>
+                    <div class="stat-item"><div class="stat-label" id="uncertLabel">平均不确定度</div><div class="stat-value" id="avgUncertainty">0</div></div>
+                    <div class="stat-item"><div class="stat-label" id="confLevelLabel">置信等级</div><div class="stat-value"><span id="confidenceLevel" class="badge">低</span></div></div>
                 </div>
             </div>
             <div class="report-card">
-                <h3>Trajectory Details</h3>
+                <h3 id="detailTitle">轨迹详情</h3>
                 <table class="trajectory-table">
-                    <thead><tr><th>Mode</th><th>Prob</th><th>End Point</th><th>Dist</th></tr></thead>
+                    <thead><tr><th id="thMode">模式</th><th id="thProb">概率</th><th id="thEnd">终点</th><th id="thDist">距离</th></tr></thead>
                     <tbody id="trajectoryDetails"></tbody>
                 </table>
             </div>
@@ -281,16 +280,148 @@ if __name__ == '__main__':
     <script>
         let currentLang = 'zh';
         let lastPredictionData = null;
-        function switchLang(lang) { currentLang = lang; document.getElementById('lang-zh').className = lang==='zh'?'lang-btn active':'lang-btn'; document.getElementById('lang-en').className = lang==='en'?'lang-btn active':'lang-btn'; if(lastPredictionData){updateProbDisplay(lastPredictionData);updateReport(lastPredictionData);} }
-        function updateProbDisplay(data){var d=document.getElementById('probDisplay');d.innerHTML='<h3>Probabilities:</h3>'+data.probabilities.map((p,i)=>'<div class="mode-item mode-'+i+'">Mode '+(i+1)+': '+(p*100).toFixed(1)+'%</div>').join('');}
-        const canvas=document.getElementById('canvas'),ctx=canvas.getContext('2d');
-        let points=[],selectedPoint=null,predictedTrajectories=[];
-        function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.strokeStyle='#eee';ctx.lineWidth=1;for(let i=0;i<canvas.width;i+=50){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,canvas.height);ctx.stroke();}for(let i=0;i<canvas.height;i+=50){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(canvas.width,i);ctx.stroke();}if(points.length>1){ctx.strokeStyle='#3498db';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);ctx.stroke();points.forEach((p,i)=>{ctx.fillStyle='#3498db';ctx.beginPath();ctx.arc(p.x,p.y,7,0,Math.PI*2);ctx.fill();ctx.fillStyle='white';ctx.font='bold 12px Arial';ctx.textAlign='center';ctx.fillText(i,p.x,p.y+4);});}if(predictedTrajectories.length>0){var colors=['#FF6B6B','#4ECDC4','#9B59B6'];predictedTrajectories.forEach((traj,idx)=>{ctx.strokeStyle=colors[idx];ctx.lineWidth=3;ctx.setLineDash([8,4]);ctx.beginPath();ctx.moveTo(points[points.length-1].x,points[points.length-1].y);traj.forEach(point=>{ctx.lineTo(points[points.length-1].x+point[0]*10,points[points.length-1].y-point[1]*10);});ctx.stroke();ctx.setLineDash([]);var lp=traj[traj.length-1],ex=points[points.length-1].x+lp[0]*10,ey=points[points.length-1].y-lp[1]*10;ctx.fillStyle=colors[idx];ctx.beginPath();ctx.arc(ex,ey,8,0,Math.PI*2);ctx.fill();ctx.fillStyle='white';ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.fillText(idx+1,ex,ey+3);});}}
-        async function loadDemo(){var r=await fetch('/demo');var d=await r.json();var cx=canvas.width/2,cy=canvas.height/2;points=d.trajectory.map((p,i)=>({x:cx+p[0]*25,y:cy-p[1]*25}));predictedTrajectories=[];document.getElementById('predictionReport').style.display='none';document.getElementById('probDisplay').innerHTML='';draw();}
-        async function runPrediction(){if(points.length<20){alert('Need at least 20 points');return;}var o={x:points[0].x,y:points[0].y};var traj=points.map(p=>[p.x-o.x,o.y-p.y]);try{var r=await fetch('/api/v1/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({trajectory:traj,top_k:3})});var d=await r.json();if(d.success){predictedTrajectories=d.data.trajectories;lastPredictionData=d.data;updateProbDisplay(d.data);updateReport(d.data);draw();}else alert('Failed: '+d.error);}catch(e){alert('Error: '+e.message);}}
-        function updateReport(data){document.getElementById('predictionReport').style.display='block';document.getElementById('bestMode').textContent='Mode '+data.summary.best_mode;document.getElementById('confidence').textContent=(data.summary.confidence*100).toFixed(1)+'%';document.getElementById('confidenceBar').style.width=(data.summary.confidence*100)+'%';document.getElementById('obsPoints').textContent=data.summary.observation_points;document.getElementById('predHorizon').textContent=data.summary.prediction_horizon;document.getElementById('avgUncertainty').textContent=data.summary.avg_uncertainty.toFixed(4);var lb=document.getElementById('confidenceLevel'),c=data.summary.confidence;if(c>=0.7){lb.textContent='High';lb.className='badge badge-high';}else if(c>=0.4){lb.textContent='Medium';lb.className='badge badge-medium';}else{lb.textContent='Low';lb.className='badge badge-low';}var tb=document.getElementById('trajectoryDetails');tb.innerHTML='';var colors=['#FF6B6B','#4ECDC4','#9B59B6'];data.statistics.forEach((s,i)=>{var r=document.createElement('tr');r.innerHTML='<td><span style="color:'+colors[i]+';font-weight:bold;">Mode '+s.mode+'</span></td><td>'+(s.probability*100).toFixed(1)+'%</td><td>('+s.final_x.toFixed(2)+','+s.final_y.toFixed(2)+')</td><td>'+s.total_distance.toFixed(2)+' m</td>';tb.appendChild(r);});}
-        function clearCanvas(){points=[];predictedTrajectories=[];document.getElementById('probDisplay').innerHTML='';document.getElementById('predictionReport').style.display='none';draw();}
-        canvas.addEventListener('mousedown',e=>{var r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;for(var i=0;i<points.length;i++){if(Math.sqrt((x-points[i].x)**2+(y-points[i].y)**2)<12){selectedPoint=i;return;}}if(points.length<30){points.push({x,y});draw();}});
+
+        const T = {
+            zh: {
+                title: '多模态轨迹预测系统', subtitle: '轻量化自动驾驶轨迹预测',
+                apiTitle: 'RESTful API', apiTry: '试用: <a href="/api/v1/examples">示例</a> | <a href="/api/v1/model_info">模型信息</a>',
+                btnLoadDemo: '加载示例', btnPredict: '开始预测', btnClear: '清除画布',
+                summaryTitle: '预测摘要', bestModeLabel: '最佳模式: ', confidenceLabel: '置信度: ',
+                statsTitle: '统计数据', obsLabel: '观测点数', horizonLabel: '预测时长', uncertLabel: '平均不确定度',
+                confLabel: '置信等级', detailTitle: '轨迹详情',
+                thMode: '模式', thProb: '概率', thEnd: '终点', thDist: '总距离',
+                mode: '模式', need20: '需要至少20个观测点', fail: '预测失败: ', error: '错误: ',
+                high: '高', medium: '中', low: '低'
+            },
+            en: {
+                title: 'Multi-Modal Trajectory Prediction System', subtitle: 'Lightweight Autonomous Driving Trajectory Prediction',
+                apiTitle: 'RESTful API', apiTry: 'Try: <a href="/api/v1/examples">Examples</a> | <a href="/api/v1/model_info">Model Info</a>',
+                btnLoadDemo: 'Load Demo', btnPredict: 'Predict', btnClear: 'Clear',
+                summaryTitle: 'Prediction Summary', bestModeLabel: 'Best Mode: ', confidenceLabel: 'Confidence: ',
+                statsTitle: 'Statistics', obsLabel: 'Obs Points', horizonLabel: 'Horizon', uncertLabel: 'Avg Uncertainty',
+                confLabel: 'Confidence', detailTitle: 'Trajectory Details',
+                thMode: 'Mode', thProb: 'Prob', thEnd: 'End Point', thDist: 'Distance',
+                mode: 'Mode', need20: 'Need at least 20 points', fail: 'Failed: ', error: 'Error: ',
+                high: 'High', medium: 'Medium', low: 'Low'
+            }
+        };
+
+        function t(key) { return T[currentLang][key] || key; }
+        function elem(id) { return document.getElementById(id); }
+
+        function switchLang(lang) {
+            currentLang = lang;
+            elem('lang-zh').className = lang==='zh'?'lang-btn active':'lang-btn';
+            elem('lang-en').className = lang==='en'?'lang-btn active':'lang-btn';
+            document.title = t('title');
+            elem('pageTitle').textContent = t('title');
+            elem('pageSubtitle').textContent = t('subtitle');
+            elem('apiTitle').textContent = t('apiTitle');
+            elem('apiTry').innerHTML = t('apiTry');
+            elem('btnLoadDemo').textContent = t('btnLoadDemo');
+            elem('btnPredict').textContent = t('btnPredict');
+            elem('btnClear').textContent = t('btnClear');
+            elem('summaryTitle').textContent = t('summaryTitle');
+            elem('bestModeLabel').textContent = t('bestModeLabel');
+            elem('confidenceLabel').textContent = t('confidenceLabel');
+            elem('statsTitle').textContent = t('statsTitle');
+            elem('obsLabel').textContent = t('obsLabel');
+            elem('horizonLabel').textContent = t('horizonLabel');
+            elem('uncertLabel').textContent = t('uncertLabel');
+            elem('confLevelLabel').textContent = t('confLabel');
+            elem('detailTitle').textContent = t('detailTitle');
+            elem('thMode').textContent = t('thMode');
+            elem('thProb').textContent = t('thProb');
+            elem('thEnd').textContent = t('thEnd');
+            elem('thDist').textContent = t('thDist');
+            if (lastPredictionData) { updateReport(lastPredictionData); updateProbDisplay(lastPredictionData); }
+        }
+
+        function updateProbDisplay(data) {
+            var d = elem('probDisplay');
+            d.innerHTML = data.probabilities.map((p,i) =>
+                '<div class="mode-item mode-'+i+'">'+t('mode')+' '+(i+1)+': '+(p*100).toFixed(1)+'%</div>'
+            ).join('');
+        }
+
+        const canvas=elem('canvas'), ctx=canvas.getContext('2d');
+        let points=[], selectedPoint=null, predictedTrajectories=[];
+
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.strokeStyle='#eee'; ctx.lineWidth=1;
+            for(let i=0;i<canvas.width;i+=50){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,canvas.height);ctx.stroke();}
+            for(let i=0;i<canvas.height;i+=50){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(canvas.width,i);ctx.stroke();}
+            if(points.length>1){
+                ctx.strokeStyle='#3498db'; ctx.lineWidth=3; ctx.beginPath();
+                ctx.moveTo(points[0].x,points[0].y);
+                for(let i=1;i<points.length;i++) ctx.lineTo(points[i].x,points[i].y);
+                ctx.stroke();
+                points.forEach((p,i)=>{
+                    ctx.fillStyle='#3498db'; ctx.beginPath(); ctx.arc(p.x,p.y,7,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle='white'; ctx.font='bold 12px Arial'; ctx.textAlign='center'; ctx.fillText(i,p.x,p.y+4);
+                });
+            }
+            if(predictedTrajectories.length>0){
+                var colors=['#FF6B6B','#4ECDC4','#9B59B6'];
+                predictedTrajectories.forEach((traj,idx)=>{
+                    ctx.strokeStyle=colors[idx]; ctx.lineWidth=3; ctx.setLineDash([8,4]);
+                    ctx.beginPath(); ctx.moveTo(points[points.length-1].x,points[points.length-1].y);
+                    traj.forEach(pt=>{ctx.lineTo(points[points.length-1].x+pt[0]*10,points[points.length-1].y-pt[1]*10);});
+                    ctx.stroke(); ctx.setLineDash([]);
+                    var lp=traj[traj.length-1], ex=points[points.length-1].x+lp[0]*10, ey=points[points.length-1].y-lp[1]*10;
+                    ctx.fillStyle=colors[idx]; ctx.beginPath(); ctx.arc(ex,ey,8,0,Math.PI*2); ctx.fill();
+                    ctx.fillStyle='white'; ctx.font='bold 10px Arial'; ctx.textAlign='center'; ctx.fillText(idx+1,ex,ey+3);
+                });
+            }
+        }
+
+        async function loadDemo() {
+            var r=await fetch('/demo'); var d=await r.json();
+            var cx=canvas.width/2, cy=canvas.height/2;
+            points=d.trajectory.map((p,i)=>({x:cx+p[0]*25, y:cy-p[1]*25}));
+            predictedTrajectories=[]; elem('predictionReport').style.display='none'; elem('probDisplay').innerHTML=''; draw();
+        }
+
+        async function runPrediction() {
+            if(points.length<20){alert(t('need20'));return;}
+            var o={x:points[0].x, y:points[0].y};
+            var traj=points.map(p=>[p.x-o.x, o.y-p.y]);
+            try{
+                var r=await fetch('/api/v1/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({trajectory:traj, top_k:3})});
+                var d=await r.json();
+                if(d.success){predictedTrajectories=d.data.trajectories; lastPredictionData=d.data; updateProbDisplay(d.data); updateReport(d.data); draw();}
+                else alert(t('fail')+d.error);
+            }catch(e){alert(t('error')+e.message);}
+        }
+
+        function updateReport(data) {
+            elem('predictionReport').style.display='block';
+            elem('bestMode').textContent=t('mode')+' '+data.summary.best_mode;
+            elem('confidence').textContent=(data.summary.confidence*100).toFixed(1)+'%';
+            elem('confidenceBar').style.width=(data.summary.confidence*100)+'%';
+            elem('obsPoints').textContent=data.summary.observation_points;
+            elem('predHorizon').textContent=data.summary.prediction_horizon;
+            elem('avgUncertainty').textContent=data.summary.avg_uncertainty.toFixed(4);
+            var lb=elem('confidenceLevel'), c=data.summary.confidence;
+            if(c>=0.7){lb.textContent=t('high'); lb.className='badge badge-high';}
+            else if(c>=0.4){lb.textContent=t('medium'); lb.className='badge badge-medium';}
+            else{lb.textContent=t('low'); lb.className='badge badge-low';}
+            var tb=elem('trajectoryDetails'); tb.innerHTML='';
+            var colors=['#FF6B6B','#4ECDC4','#9B59B6'];
+            data.statistics.forEach((s,i)=>{
+                var r=document.createElement('tr');
+                r.innerHTML='<td><span style="color:'+colors[i]+';font-weight:bold;">'+t('mode')+' '+s.mode+'</span></td><td>'+(s.probability*100).toFixed(1)+'%</td><td>('+s.final_x.toFixed(2)+','+s.final_y.toFixed(2)+')</td><td>'+s.total_distance.toFixed(2)+' m</td>';
+                tb.appendChild(r);
+            });
+        }
+
+        function clearCanvas(){points=[]; predictedTrajectories=[]; elem('probDisplay').innerHTML=''; elem('predictionReport').style.display='none'; draw();}
+        canvas.addEventListener('mousedown',e=>{
+            var r=canvas.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+            for(var i=0;i<points.length;i++){if(Math.sqrt((x-points[i].x)**2+(y-points[i].y)**2)<12){selectedPoint=i;return;}}
+            if(points.length<30){points.push({x,y});draw();}
+        });
         canvas.addEventListener('mousemove',e=>{if(selectedPoint===null)return;var r=canvas.getBoundingClientRect();points[selectedPoint].x=e.clientX-r.left;points[selectedPoint].y=e.clientY-r.top;draw();});
         canvas.addEventListener('mouseup',()=>{selectedPoint=null;});
         draw();

@@ -84,9 +84,12 @@ def visualize_prediction(obs_traj, result, output_path, gt_traj=None):
     plt.savefig(output_path, dpi=150, bbox_inches='tight'); plt.close()
 
 
-def batch_predict(model, input_dir, output_dir, device='cpu'):
+def batch_predict(model, input_dir, output_dir, device='cpu', max_files=None):
     os.makedirs(output_dir, exist_ok=True)
     csv_files = [f for f in os.listdir(input_dir) if f.endswith('.csv')]
+    if max_files is not None and max_files > 0:
+        csv_files = csv_files[:max_files]
+        print(f"Limiting to first {len(csv_files)} files")
     results = []
     for csv_file in csv_files:
         print(f"Processing: {csv_file}")
@@ -120,6 +123,7 @@ def main():
     parser.add_argument('--output', type=str, default='./output')
     parser.add_argument('--visualize', action='store_true', default=True)
     parser.add_argument('--device', type=str, default='cpu')
+    parser.add_argument('--max_files', type=int, default=None, help='Max files to process in batch mode')
     args = parser.parse_args()
 
     print("=" * 50)
@@ -154,7 +158,7 @@ def main():
         print(f"Results saved: {json_path}")
     elif os.path.isdir(args.input):
         print(f"\nBatch: {args.input}")
-        batch_predict(model, args.input, args.output, device)
+        batch_predict(model, args.input, args.output, device, args.max_files)
     else:
         print(f"Error: input not found: {args.input}")
 
