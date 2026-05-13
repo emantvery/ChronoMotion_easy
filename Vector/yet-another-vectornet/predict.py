@@ -93,10 +93,10 @@ def batch_predict(model, input_dir, output_dir, device='cpu'):
         try:
             file_path = os.path.join(input_dir, csv_file)
             traj = read_csv_trajectory(file_path)
-            if len(traj) < OBS_LEN + PRED_LEN:
+            if len(traj) < OBS_LEN:
                 print(f"  Skipped: insufficient data"); continue
             obs_traj = np.array(traj[:OBS_LEN])
-            gt_traj = np.array(traj[OBS_LEN:OBS_LEN + PRED_LEN])
+            gt_traj = np.array(traj[OBS_LEN:OBS_LEN + PRED_LEN]) if len(traj) >= OBS_LEN + PRED_LEN else None
             result = predict(model, obs_traj, device)
             output_path = os.path.join(output_dir, os.path.splitext(csv_file)[0] + '_pred.png')
             visualize_prediction(obs_traj, result, output_path, gt_traj)
