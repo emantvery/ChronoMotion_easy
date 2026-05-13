@@ -20,7 +20,10 @@ def load_model(model_path, device='cpu'):
     model = MultiModalVectorNet(in_channels=FEATURE_DIM, out_channels=OUT_DIM,
                                 k_modes=K_MODES, hidden_dim=128, obs_len=OBS_LEN)
     checkpoint = torch.load(model_path, map_location=device, weights_only=False)
-    model.load_state_dict(checkpoint['model_state_dict'])
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        model.load_state_dict(checkpoint['model_state_dict'])
+    else:
+        model.load_state_dict(checkpoint)
     model.eval()
     model.to(device)
     return model

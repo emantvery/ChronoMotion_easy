@@ -12,3 +12,7 @@ __pycache__/
 _*.py
 *log*.txt
 mydata/
+evaluation_results/
+docs/
+fig*.png
+demo_pred_*.png

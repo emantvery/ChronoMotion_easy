@@ -343,20 +343,32 @@ def main():
     optimizer = optim.AdamW(model.parameters(), lr=LR, weight_decay=cfg.get('weight_decay', 0.01))
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
 
+    start_epoch = 0
+    checkpoint_path = 'best_multimodal_model.pth'
+    if os.path.exists(checkpoint_path):
+        checkpoint = torch.load(checkpoint_path, map_location=DEVICE, weights_only=False)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch'] + 1
+        best_val_loss = checkpoint.get('val_loss', float('inf'))
+        best_ade = checkpoint.get('ade', float('inf'))
+        print(f"Resumed from epoch {start_epoch}, best val_loss={best_val_loss:.4f}, best ADE={best_ade:.4f}")
+    else:
+        best_val_loss = float('inf')
+        best_ade = float('inf')
+
     print(f"\nTraining ({EPOCHS} epochs)...")
     print("-" * 60)
 
-    best_val_loss = float('inf')
-    best_ade = float('inf')
-
-    for epoch in range(EPOCHS):
+    for epoch in range(start_epoch, EPOCHS):
         train_loss, train_metrics = train_epoch(model, train_loader, optimizer, criterion, DEVICE,
                                                 k_modes=K_MODES, pred_len=PRED_LEN)
         val_loss, val_metrics = evaluate(model, val_loader, criterion, DEVICE,
                                          k_modes=K_MODES, pred_len=PRED_LEN)
-        scheduler.step()
+        if epoch >= start_epoch:
+            scheduler.step()
 
-        if (epoch + 1) % 10 == 0 or epoch == 0:
+        if (epoch + 1) % 10 == 0 or epoch == start_epoch:
             print(f"Epoch {epoch+1:3d}/{EPOCHS} | "
                   f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | "
                   f"ADE: {val_metrics['ade']:.4f} | FDE: {val_metrics['fde']:.4f}")
